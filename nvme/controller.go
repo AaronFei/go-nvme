@@ -14,34 +14,9 @@
 
 package nvme
 
-import (
-	"fmt"
-	"io"
-)
-
-// NVMeController encapsulates the attributes of an NVMe controller.
-type NVMeController struct {
-	VendorID        uint16
-	ModelNumber     string
-	SerialNumber    string
-	FirmwareVersion string
-	OUI             uint32 // IEEE OUI identifier
-	MaxDataXferSize uint
-}
-
-// Print outputs the attributes of an NVMe controller in a pretty-print style.
-func (c *NVMeController) Print(w io.Writer) {
-	fmt.Fprintf(w, "Vendor ID          : %#04x\n", c.VendorID)
-	fmt.Fprintf(w, "Model number       : %s\n", c.ModelNumber)
-	fmt.Fprintf(w, "Serial number      : %s\n", c.SerialNumber)
-	fmt.Fprintf(w, "Firmware version   : %s\n", c.FirmwareVersion)
-	fmt.Fprintf(w, "IEEE OUI identifier: %#06x\n", c.OUI)
-	fmt.Fprintf(w, "Max. data xfer size: %d pages\n", c.MaxDataXferSize)
-}
-
 // nvmeIdentController is the low-level struct to decode the response of an NVME_ADMIN_IDENTIFY
 // controller ioctl.
-type nvmeIdentController struct {
+type NvmeIdentController struct {
 	VendorID     uint16                  // PCI Vendor ID
 	Ssvid        uint16                  // PCI Subsystem Vendor ID
 	SerialNumber [20]byte                // Serial Number
@@ -94,3 +69,21 @@ type nvmeIdentController struct {
 	Psd          [32]nvmeIdentPowerState // Power State Descriptors
 	Vs           [1024]byte              // Vendor Specific
 } // 4096 bytes
+
+type nvmeIdentPowerState struct {
+	MaxPower        uint16 // Centiwatts
+	Rsvd2           uint8
+	Flags           uint8
+	EntryLat        uint32 // Microseconds
+	ExitLat         uint32 // Microseconds
+	ReadTput        uint8
+	ReadLat         uint8
+	WriteTput       uint8
+	WriteLat        uint8
+	IdlePower       uint16
+	IdleScale       uint8
+	Rsvd19          uint8
+	ActivePower     uint16
+	ActiveWorkScale uint8
+	Rsvd23          [9]byte
+}

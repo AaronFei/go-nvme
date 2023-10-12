@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"unsafe"
 
-	"github.com/dswarbrick/go-nvme/nvme"
+	"github.com/AaronFei/go-nvme/nvme"
 
 	"golang.org/x/sys/unix"
 )
@@ -89,7 +89,12 @@ func main() {
 	}
 	defer d.Close()
 
-	d.IdentifyController(os.Stdout)
-	d.IdentifyNamespace(os.Stdout, 1)
-	d.PrintSMART(os.Stdout)
+	d.IdentPrint(os.Stdout)
+
+	buf := make([]byte, 512)
+	err := d.Read(0, 1, buf)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(buf)
 }

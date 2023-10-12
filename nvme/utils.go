@@ -68,3 +68,7 @@ func le128ToBigInt(buf [16]byte) *big.Int {
 
 	return new(big.Int).SetBytes(rev)
 }
+
+func getBitsValue(data uint64, start, end uint8) uint64 {
+	return (data >> start) & ((1 << (end - start + 1)) - 1)
+}
