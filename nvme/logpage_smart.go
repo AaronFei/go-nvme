@@ -31,11 +31,24 @@ type nvmeSMARTLog struct {
 	Rsvd216          [296]byte
 } // 512 bytes
 
+func (d *NVMeDevice) GetLogPageSmart(buf []byte) error {
+	cdw10 := buildCdw(LogPageCdw10BitInfo, LogPageCdw10{
+		LID:   uint32(LOGPAGE_SMART_HEALTH_INFO),
+		NUMDL: ((uint32(len(buf)) / 4) - 1),
+	})
+
+	if err := d.GetLogPageRaw(0xffffffff, cdw10, 0, 0, 0, 0, buf); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *NVMeDevice) PrintSMART(w io.Writer) error {
 	buf := make([]byte, 512)
 
 	// Read SMART log
-	if err := d.readLogPage(0x02, buf); err != nil {
+	if err := d.GetLogPageSmart(buf); err != nil {
 		return err
 	}
 

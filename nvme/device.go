@@ -42,11 +42,9 @@ type NvmeController struct {
 }
 
 type NVMeDevice struct {
-	Name       string
-	fd         int
-	ModelInfo  NvmeController
-	controller NvmeIdentController
-	namespace  [256]NvmeIdentNamespace
+	Name      string
+	fd        int
+	ModelInfo NvmeController
 }
 
 func NewNVMeDevice(name string) *NVMeDevice {

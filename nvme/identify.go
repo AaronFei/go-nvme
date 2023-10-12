@@ -8,6 +8,31 @@ import (
 	"github.com/AaronFei/go-nvme/ioctl"
 )
 
+const (
+	IDENTIFY_CNS_NSID           uint8 = 0x00
+	IDENTIFY_CNS_CTRL           uint8 = 0x01
+	IDENTIFY_CNS_ACTIVE_NS_LIST uint8 = 0x02
+	IDENTIFY_CNS_NS_ID_DESC     uint8 = 0x03
+	IDENTIFY_CNS_NVM_SET_LIST   uint8 = 0x04
+	IDENTIFY_CNS_IOCS_NS        uint8 = 0x05
+	IDENTIFY_CNS_IOCS_CTRL      uint8 = 0x06
+	IDENTIFY_CNS_IOCS_ACTIVE_NS uint8 = 0x07
+	IDENTIFY_CNS_IOCS_INDEP_NS  uint8 = 0x08
+	IDENTIFY_CNS_ALLOC_NS_LIST  uint8 = 0x10
+	IDENTIFY_CNS_ALLOC_NS       uint8 = 0x11
+	IDENTIFY_CNS_CTRL_LIST_NS   uint8 = 0x12
+	IDENTIFY_CNS_CTRL_LIST      uint8 = 0x13
+	IDENTIFY_CNS_PRIMARY_CTRL   uint8 = 0x14
+	IDENTIFY_CNS_SECONDARY_CTRL uint8 = 0x15
+	IDENTIFY_CNS_NS_GRAN_LIST   uint8 = 0x16
+	IDENTIFY_CNS_UUID_LIST      uint8 = 0x17
+	IDENTIFY_CNS_DOMAIN_LIST    uint8 = 0x18
+	IDENTIFY_CNS_ENDURANCE_LIST uint8 = 0x19
+	IDENTIFY_CNS_IOCS_ALLOC_NS  uint8 = 0x1a
+	IDENTIFY_CNS_IOCS_ALLOC     uint8 = 0x1b
+	IDENTIFY_CNS_IOCS           uint8 = 0x1c
+)
+
 type NvmeIdentNamespace struct {
 	Nsze    uint64
 	Ncap    uint64
@@ -44,18 +69,28 @@ type lbaf struct {
 	Rp    uint8
 }
 
-func (d *NVMeDevice) IdentifyController() (NvmeIdentController, error) {
-	buf := make([]byte, 4096)
-
+func (d *NVMeDevice) IdentifyRaw(cns uint8, nsid uint32, cdw10 uint32, cdw11 uint32, cdw14 uint32, buf []byte) error {
 	cmd := nvmePassthruCommand{
 		opcode:   NVME_ADMIN_IDENTIFY,
-		nsid:     0, // Namespace 0, since we are identifying the controller
+		nsid:     nsid, // Namespace 0, since we are identifying the controller
 		addr:     uint64(uintptr(unsafe.Pointer(&(buf[0])))),
 		data_len: uint32(len(buf)),
-		cdw10:    1, // Identify controller
+		cdw10:    cdw10, // Identify controller
+		cdw11:    cdw11,
+		cdw14:    cdw14,
 	}
 
 	if err := ioctl.Ioctl(uintptr(d.fd), NVME_IOCTL_ADMIN_CMD, uintptr(unsafe.Pointer(&cmd))); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *NVMeDevice) IdentifyController() (NvmeIdentController, error) {
+	buf := make([]byte, 4096)
+
+	if err := d.IdentifyRaw(IDENTIFY_CNS_CTRL, 0, 1, 0, 0, buf); err != nil {
 		return NvmeIdentController{}, err
 	}
 
@@ -76,36 +111,15 @@ func (d *NVMeDevice) IdentifyController() (NvmeIdentController, error) {
 	return idCtrlr, nil
 }
 
-func (d *NVMeDevice) IdentifyNamespace(namespace uint32) (NvmeIdentNamespace, error) {
+func (d *NVMeDevice) IdentifyNamespace(nsid uint32) (NvmeIdentNamespace, error) {
 	buf := make([]byte, 4096)
 
-	cmd := nvmePassthruCommand{
-		opcode:   NVME_ADMIN_IDENTIFY,
-		nsid:     namespace,
-		addr:     uint64(uintptr(unsafe.Pointer(&buf[0]))),
-		data_len: uint32(len(buf)),
-		cdw10:    0,
-	}
-
-	if err := ioctl.Ioctl(uintptr(d.fd), NVME_IOCTL_ADMIN_CMD, uintptr(unsafe.Pointer(&cmd))); err != nil {
+	if err := d.IdentifyRaw(IDENTIFY_CNS_NSID, nsid, 0, 0, 0, buf); err != nil {
 		return NvmeIdentNamespace{}, err
 	}
 
 	var ns NvmeIdentNamespace
 	binary.Read(bytes.NewBuffer(buf[:]), NativeEndian, &ns)
 
-	d.namespace[namespace] = ns
-
 	return ns, nil
-}
-
-func (d *NVMeDevice) getLbaSize(nsid uint32) (uint64, error) {
-	ns, err := d.IdentifyNamespace(nsid)
-	if err != nil {
-		return 0, err
-	}
-
-	lbaf := ns.Lbaf[getBitsValue(uint64(ns.Flbas), 3, 0)]
-
-	return uint64(1 << lbaf.Lbads), nil
 }

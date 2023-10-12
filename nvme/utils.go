@@ -18,6 +18,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"reflect"
 	"unsafe"
 )
 
@@ -69,6 +70,32 @@ func le128ToBigInt(buf [16]byte) *big.Int {
 	return new(big.Int).SetBytes(rev)
 }
 
+// getBitsValue returns the value of a bit field in a uint64
 func getBitsValue(data uint64, start, end uint8) uint64 {
 	return (data >> start) & ((1 << (end - start + 1)) - 1)
+}
+
+type cdwBitInfo []struct {
+	name     string
+	bitStart uint8
+}
+
+// buildCdw builds a command dword from a struct containing bit field information
+func buildCdw(bitInfo cdwBitInfo, data any) uint32 {
+	var cdw uint32
+
+	for _, info := range bitInfo {
+		valueOfS := reflect.ValueOf(data)
+		fieldValue := valueOfS.FieldByName(info.name)
+
+		if fieldValue.IsValid() {
+			// Get the field value as a uint64
+			fieldValue64 := fieldValue.Uint()
+
+			// Set the bit field in the CDW
+			cdw |= uint32(fieldValue64) << info.bitStart
+		}
+	}
+
+	return cdw
 }

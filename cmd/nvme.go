@@ -92,9 +92,7 @@ func main() {
 	d.IdentPrint(os.Stdout)
 
 	buf := make([]byte, 512)
-	err := d.Read(0, 1, buf)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(buf)
+	d.PrintSMART(os.Stdout)
+	clear(buf)
+	d.PrintFwSlotInfo()
 }
